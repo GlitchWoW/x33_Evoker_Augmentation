@@ -122,14 +122,14 @@ function StateUpdate()
 
     state.currentTarget = game_api.getCurrentUnitTarget()
     state.currentPlayer = game_api.getCurrentPlayer()
-    state.FontOfMagic = game_api.hasTalent(talents.FontOfMagic)
 
     state.currentHpPercent = game_api.unitHealthPercent(state.currentPlayer)
 
     state.party = game_api.getPartyUnits()
 
-    state.chargedSpellsMaxRank = 3
- 
+    state.UpheavalMaxRank = 4
+    state.FirebreathMaxRank = 3
+
 end
 
 
@@ -159,6 +159,9 @@ function Affix()
     return false
 end
 
+
+state.FireBreathEmpowerLevel = 1
+state.UpheavalEmpowerLevel = 1
 function Dps()
 
     if state.currentTarget == "00" or not game_api.isTargetHostile(true) then
@@ -173,11 +176,60 @@ function Dps()
         return true
     end
 
-    if ( game_api.canCast(spells.FireBreath) and not game_api.isOnCooldown(spells.FireBreathFOM) ) and state.currentMana >= 6500 and game_api.currentPlayerDistanceFromTarget() <= 25.0  then
+    if (game_api.canCast(spells.EbonMight) or game_api.getCooldownRemainingTime(spells.EbonMight) < 5000 ) and game_api.canCast(spells.TipTheScales) then
+        game_api.castSpell(spells.TipTheScales)
+        return true
+    end
+
+    if ( game_api.canCast(spells.EbonMight) and not game_api.currentPlayerHasAura(auras.EbonMight) ) then
+        game_api.castSpell(spells.EbonMight)
+        return true
+    end
+
+    if ( game_api.canCast(spells.FireBreath) and game_api.currentPlayerHasAura(auras.EbonMight) ) and state.currentMana >= 6500 and game_api.currentPlayerDistanceFromTarget() <= 25.0  then
+        state.UpheavalEmpowerLevel = 5
         game_api.castSpell(spells.FireBreath)
         return true
     end
-    if game_api.currentPlayerHasAura(auras.EssenceBurst,true) and game_api.canCast(spells.Eruption) and game_api.currentPlayerDistanceFromTarget() <= 25.0 then
+
+    if ( game_api.canCast(spells.Upheaval) and game_api.currentPlayerHasAura(auras.EbonMight) ) and state.currentMana >= 6500 and game_api.currentPlayerDistanceFromTarget() <= 25.0  then
+        local rank = 0
+        local nbUnit = 0
+        for i = 3, 12, 3 do
+            local unitCheck = game_api.getUnitCountInRangeFromUnit(state.currentTarget,i,false) + 1
+            if unitCheck > nbUnit then
+                nbUnit = unitCheck
+                rank = i/3
+            end
+        end
+
+        state.UpheavalEmpowerLevel = rank
+        game_api.castSpellOnTarget(spells.Upheaval,state.currentTarget)
+        return true
+    end
+
+
+    if game_api.getToggle(settings.Cooldown) then
+        if game_api.canCast(spells.BreathOfEons) and game_api.currentPlayerHasAura(auras.EbonMight) and game_api.currentPlayerDistanceFromTarget() <= 50.0 then
+            game_api.castAOESpellOnTarget(state.currentTarget,spells.BreathOfEons)
+        end
+
+    end
+
+
+    if ( game_api.canCast(spells.TimeSkip) and game_api.currentPlayerHasAura(auras.EbonMight) ) then
+        if game_api.isOnCooldown(spells.FireBreath) and game_api.isOnCooldown(spells.Upheaval) and game_api.isOnCooldown(spells.EbonMight) then
+            game_api.castSpell(spells.TimeSkip)
+            return true
+        end
+    end
+
+    if game_api.currentPlayerHasAura(auras.LeapingFlames) and game_api.canCast(spells.LivingFlame) and game_api.currentPlayerDistanceFromTarget() <= 25.0 then
+        game_api.castSpellOnTarget(spells.LivingFlame,state.currentTarget)
+        return true
+    end
+
+    if  game_api.canCast(spells.Eruption) and game_api.currentPlayerDistanceFromTarget() <= 25.0 and ((game_api.currentPlayerHasAura(auras.EssenceBurst,true)) or (state.currentEssence >= 3) ) then
         game_api.castSpellOnTarget(spells.Eruption,state.currentTarget)
         return true
     end
@@ -194,12 +246,12 @@ end
 function Empower()
 
     if game_api.currentPlayerIsChanneling() then
-        if ( game_api.getCurrentPlayerChannelID() == spells.FireBreath ) and utils.EmpowerRank(game_api.getCurrentPlayerChannelPercentage(),state.chargedSpellsMaxRank) > 0 then
+        if ( game_api.getCurrentPlayerChannelID() == spells.FireBreath ) and utils.EmpowerRank(game_api.getCurrentPlayerChannelPercentage(),state.FirebreathMaxRank) > (state.FireBreathEmpowerLevel - 1) then
             game_api.castSpell(spells.FireBreath);
             return true
         end
 
-        if ( game_api.getCurrentPlayerChannelID() == spells.Upheaval ) and utils.EmpowerRank(game_api.getCurrentPlayerChannelPercentage(),state.chargedSpellsMaxRank) > 0 then
+        if ( game_api.getCurrentPlayerChannelID() == spells.Upheaval ) and utils.EmpowerRank(game_api.getCurrentPlayerChannelPercentage(),state.UpheavalMaxRank) > (state.UpheavalEmpowerLevel - 1) then
             game_api.castSpell(spells.Upheaval);
             return true
         end
