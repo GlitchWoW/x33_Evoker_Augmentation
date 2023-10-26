@@ -7,7 +7,7 @@ function utils.CheckConditionOnUnitList(unitList,conditionFunc)
     local partyUnits = {}
     for _, unit in ipairs(unitList) do
         if conditionFunc(unit) then
-            table.insert(unit, partyUnits)
+            table.insert(partyUnits,unit)
         end
     end
     return partyUnits

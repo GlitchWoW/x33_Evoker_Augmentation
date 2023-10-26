@@ -13,8 +13,6 @@ settings.RenewingBlazePercent = "RenewingBlaze Life Percent"
 
 function settings.createSettings()
 
-    game_api.createSetting(settings.DispelDelay,settings.DispelDelay,1500,{0,3000})
-
     game_api.createSetting(settings.ObsidianScalePercent,settings.ObsidianScalePercent,70,{0,100})
     game_api.createSetting(settings.RenewingBlazePercent,settings.RenewingBlazePercent,97,{0,100})
 

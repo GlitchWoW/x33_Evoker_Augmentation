@@ -300,6 +300,10 @@ function api_functions.unitChannelingSpellID(unitGuid)
     return 0
 end
 
+function api_functions.currentTime()
+    return 0
+end
+
 
 
 return api_functions
