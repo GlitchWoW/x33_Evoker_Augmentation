@@ -31,5 +31,7 @@ spells.VerdantEmbrace = 360995
 
 spells.Naturalize = 360823
 spells.CauterizingFlame = 374251
+spells.BlackAttunement = 403264
+
 
 return spells

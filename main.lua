@@ -270,6 +270,11 @@ end
 
 function Defensive()
 
+    if not game_api.currentPlayerHasAura(auras.BlackAttunement,true) and game_api.canCast(spells.BlackAttunement) then
+        game_api.castSpell(spells.BlackAttunement);
+        return true
+    end
+
     if game_api.hasTalent(talents.RenewingBlaze) and game_api.canCast(spells.RenewingBlaze) and state.currentHpPercent < game_api.getSetting(settings.RenewingBlazePercent) then
         game_api.castSpell(spells.RenewingBlaze)
         return true

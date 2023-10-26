@@ -8,5 +8,7 @@ auras.Prescience = 410089
 auras.BlisteringScales = 360827
 auras.EbonMight = 395296
 
+auras.BlackAttunement = 403264
+
 
 return auras
