@@ -27,11 +27,13 @@ spells.TipTheScales = 370553
 
 spells.ObsidianScales = 363916
 spells.RenewingBlaze = 374348
-spells.VerdantEmbrace = 360995
 
 spells.Naturalize = 360823
 spells.CauterizingFlame = 374251
 spells.BlackAttunement = 403264
+spells.BronzeAttunement = 403265
 
+spells.VerdantEmbrace = 360995
+spells.EmeraldBlossom = 355913
 
 return spells

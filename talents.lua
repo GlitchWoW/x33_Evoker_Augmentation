@@ -9,4 +9,8 @@ talents.TimeSkip = 412713
 
 talents.FontOfMagic = 408083
 
+talents.AncientFlame = 369990
+talents.ScarletAdaptation = 372469
+talents.VerdantEmbrace = 360995
+
 return talents

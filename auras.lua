@@ -10,5 +10,6 @@ auras.EbonMight = 395296
 
 auras.BlackAttunement = 403264
 
+auras.AncientFlame = 375583
 
 return auras

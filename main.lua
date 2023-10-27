@@ -190,7 +190,7 @@ function Dps()
         return true
     end
 
-    if ( game_api.canCast(spells.EbonMight) and not game_api.currentPlayerHasAura(auras.EbonMight,true) ) then
+    if ( game_api.canCast(spells.EbonMight) and ((not game_api.currentPlayerHasAura(auras.EbonMight,true)) or game_api.unitAuraRemainingTime(state.currentPlayer,auras.EbonMight,true) < 4000 )) then
         game_api.castSpell(spells.EbonMight)
         return true
     end
@@ -241,6 +241,21 @@ function Dps()
         return true
     end
 
+    if game_api.hasTalent(talents.AncientFlame) and game_api.hasTalent(talents.ScarletAdaptation) and not game_api.currentPlayerHasAura(auras.AncientFlame) and not game_api.currentPlayerHasAura(auras.EbonMight,true) then
+
+        if game_api.canCast(spells.VerdantEmbrace) then
+            game_api.castSpellOnTarget(spells.VerdantEmbrace,state.currentPlayer)
+            return true
+        end
+
+        if game_api.canCast(spells.EmeraldBlossom) and state.currentEssence >= 3 then
+            game_api.castSpell(spells.EmeraldBlossom)
+            return true
+        end
+
+    end
+
+
     if game_api.canCast(spells.LivingFlame) and game_api.currentPlayerDistanceFromTarget() <= 25.0 then
         game_api.castSpellOnTarget(spells.LivingFlame,state.currentTarget)
         return true
@@ -270,7 +285,7 @@ end
 
 function Defensive()
 
-    if not game_api.currentPlayerHasAura(auras.BlackAttunement,true) and game_api.canCast(spells.BlackAttunement) then
+    if not game_api.currentPlayerHasAura(auras.BlackAttunement,true) and game_api.canCast(spells.BlackAttunement) and not game_api.isOnCooldown(spells.BronzeAttunement) then
         game_api.castSpell(spells.BlackAttunement);
         return true
     end
@@ -328,6 +343,7 @@ function OnUpdate()
     if not game_api.isSpec(396186) then
         return true
     end
+
     if game_api.getToggle(settings.Pause) then
         return true
     end
