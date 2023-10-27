@@ -236,7 +236,7 @@ function Dps()
         return true
     end
 
-    if game_api.canCast(spells.Disintegrate) and not game_api.isOnCooldown(spells.Eruption) and game_api.currentPlayerDistanceFromTarget() <= 25.0 and ((game_api.currentPlayerHasAura(auras.EssenceBurst,true)) or (state.currentEssence >= 3) ) then
+    if game_api.canCast(spells.Disintegrate) and not game_api.isOnCooldown(spells.Eruption) and game_api.currentPlayerHasAura(auras.EbonMight,true) and game_api.currentPlayerDistanceFromTarget() <= 25.0 and ((game_api.currentPlayerHasAura(auras.EssenceBurst,true)) or (state.currentEssence >= 2) ) then
         game_api.castSpellOnTarget(spells.Disintegrate,state.currentTarget)
         return true
     end
