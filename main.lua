@@ -42,7 +42,15 @@ end
 
 function DpsWithoutPrescienceCondition(unit)
     local ret = false
-    if AnyUnitWithoutPrescienceCondition(unit) and game_api.unitIsRole(unit,"DPS") then
+    if AnyUnitWithoutPrescienceCondition(unit) and game_api.unitIsRole(unit,"DPS") and game_api.getCurrentPlayer() ~= unit then
+        ret = true
+    end
+    return ret
+end
+
+function TankWithoutPrescienceCondition(unit)
+    local ret = false
+    if AnyUnitWithoutPrescienceCondition(unit) and game_api.unitIsRole(unit,"TANK") and game_api.getCurrentPlayer() ~= unit then
         ret = true
     end
     return ret
@@ -77,8 +85,11 @@ function BlisteringScales(party)
             return true
         end
 
-        game_api.castSpellOnTarget(spells.BlisteringScales,game_api.getCurrentPlayer())
-        return true
+        if not game_api.currentPlayerHasAura(auras.BlisteringScales,true) then
+            game_api.castSpellOnTarget(spells.BlisteringScales,game_api.getCurrentPlayer())
+            return true
+        end
+
     end
     return false
 end
@@ -101,6 +112,12 @@ function Prescience(party)
         local unitDpsWithoutPrescience = utils.CheckConditionOnUnitList(party,DpsWithoutPrescienceCondition)
         if #unitDpsWithoutPrescience > 0 then
             game_api.castSpellOnTarget(spells.Prescience,unitDpsWithoutPrescience[1])
+            return true
+        end
+
+        local unitTankWithoutPrescience = utils.CheckConditionOnUnitList(party,TankWithoutPrescienceCondition)
+        if #unitTankWithoutPrescience > 0 then
+            game_api.castSpellOnTarget(spells.Prescience,unitTankWithoutPrescience[1])
             return true
         end
 
@@ -127,14 +144,20 @@ function StateUpdate()
 
     state.party = game_api.getPartyUnits()
 
-    state.UpheavalMaxRank = 4
+    state.UpheavalMaxRank = 3
     state.FirebreathMaxRank = 3
+    if game_api.hasTalent(talents.FontOfMagic) then
+        state.UpheavalMaxRank = 4
+        state.FirebreathMaxRank = 4
+    end
+
 
 end
 
 
 function Affix()
     if game_api.getToggle(settings.Dispel) then
+        state.afflictedUnits = game_api.getUnitsByNpcId(204773)
 
         if (#state.afflictedUnits > 0) and (game_api.canCast(spells.Naturalize) or game_api.canCast(spells.CauterizingFlame)) then
             for _, unit in ipairs(state.afflictedUnits) do
@@ -159,14 +182,20 @@ function Affix()
     return false
 end
 
+function UseTrinkets()
+    -- TODO: if current player is moving, skip and continue with rotation till can cast again
+    -- TODO: don't cast on end of fight
+    if not game_api.isOnCooldown(193743) and not game_api.currentPlayerIsMoving() then
+        game_api.castSpell(193743)
+        return true
+    end
+
+    return false
+end
 
 state.FireBreathEmpowerLevel = 1
 state.UpheavalEmpowerLevel = 1
 function Dps()
-
-    if state.currentTarget == "00" or not game_api.isTargetHostile(true) then
-        return false
-    end
 
     if Prescience(state.party) then
         return true
@@ -176,23 +205,27 @@ function Dps()
         return true
     end
 
-    if (game_api.canCast(spells.EbonMight) or game_api.getCooldownRemainingTime(spells.EbonMight) < 5000 ) and game_api.canCast(spells.TipTheScales) then
+    if state.currentTarget == "00" or not game_api.isTargetHostile(true) or game_api.unitHealthPercent(state.currentTarget) <= 0 then
+        return false
+    end
+
+    if (game_api.canCast(spells.EbonMight) or game_api.getCooldownRemainingTime(spells.EbonMight) < 5000 ) and not game_api.currentPlayerHasAura(auras.TipTheScales,true) and game_api.canCast(spells.TipTheScales) then
         game_api.castSpell(spells.TipTheScales)
         return true
     end
 
-    if ( game_api.canCast(spells.EbonMight) and not game_api.currentPlayerHasAura(auras.EbonMight) ) then
+    if ( game_api.canCast(spells.EbonMight) and ((not game_api.currentPlayerHasAura(auras.EbonMight,true)) or game_api.unitAuraRemainingTime(state.currentPlayer,auras.EbonMight,true) < 4000 )) then
         game_api.castSpell(spells.EbonMight)
         return true
     end
 
-    if ( game_api.canCast(spells.FireBreath) and game_api.currentPlayerHasAura(auras.EbonMight) ) and state.currentMana >= 6500 and game_api.currentPlayerDistanceFromTarget() <= 25.0  then
-        state.UpheavalEmpowerLevel = 5
-        game_api.castSpell(spells.FireBreath)
+    if ( game_api.canCast(spells.FireBreathFOM) and game_api.currentPlayerHasAura(auras.EbonMight,true) ) and game_api.currentPlayerDistanceFromTarget() <= 25.0  then
+        state.FireBreathEmpowerLevel = 4
+        game_api.castSpell(spells.FireBreathFOM)
         return true
     end
 
-    if ( game_api.canCast(spells.Upheaval) and game_api.currentPlayerHasAura(auras.EbonMight) ) and state.currentMana >= 6500 and game_api.currentPlayerDistanceFromTarget() <= 25.0  then
+    if ( game_api.canCast(spells.UpheavalFOM) and game_api.currentPlayerHasAura(auras.EbonMight,true) )  and game_api.currentPlayerDistanceFromTarget() <= 25.0  then
         local rank = 0
         local nbUnit = 0
         for i = 3, 12, 3 do
@@ -204,35 +237,53 @@ function Dps()
         end
 
         state.UpheavalEmpowerLevel = rank
-        game_api.castSpellOnTarget(spells.Upheaval,state.currentTarget)
+        game_api.castSpellOnTarget(spells.UpheavalFOM,state.currentTarget)
         return true
     end
 
-
     if game_api.getToggle(settings.Cooldown) then
-        if game_api.canCast(spells.BreathOfEons) and game_api.currentPlayerHasAura(auras.EbonMight) and game_api.currentPlayerDistanceFromTarget() <= 50.0 then
-            game_api.castAOESpellOnTarget(state.currentTarget,spells.BreathOfEons)
-        end
 
+        --if UseTrinkets() then
+            --return true
+        --end
+
+        if (game_api.canCast(spells.DeepBreath) and not game_api.isOnCooldown(spells.BreathOfEons)) and game_api.currentPlayerHasAura(auras.EbonMight,true) and game_api.currentPlayerDistanceFromTarget() <= 50.0 then
+            game_api.castAOESpellOnTarget(spells.DeepBreath,state.currentTarget)
+            return true
+        end
     end
 
-
-    if ( game_api.canCast(spells.TimeSkip) and game_api.currentPlayerHasAura(auras.EbonMight) ) then
-        if game_api.isOnCooldown(spells.FireBreath) and game_api.isOnCooldown(spells.Upheaval) and game_api.isOnCooldown(spells.EbonMight) then
+    if (not game_api.hasTalent(talents.InterwovenThreads) and game_api.hasTalent(talents.TimeSkip) and game_api.canCast(spells.TimeSkip) and game_api.currentPlayerHasAura(auras.EbonMight,true) ) then
+        if (game_api.isOnCooldown(spells.FireBreath) or game_api.isOnCooldown(spells.FireBreathFOM))and (game_api.isOnCooldown(spells.Upheaval) or game_api.isOnCooldown(spells.UpheavalFOM)) and game_api.isOnCooldown(spells.EbonMight) then
             game_api.castSpell(spells.TimeSkip)
             return true
         end
     end
 
-    if game_api.currentPlayerHasAura(auras.LeapingFlames) and game_api.canCast(spells.LivingFlame) and game_api.currentPlayerDistanceFromTarget() <= 25.0 then
+    if game_api.currentPlayerHasAura(auras.LeapingFlames,true) and game_api.canCast(spells.LivingFlame) and game_api.currentPlayerDistanceFromTarget() <= 25.0 then
         game_api.castSpellOnTarget(spells.LivingFlame,state.currentTarget)
         return true
     end
 
-    if  game_api.canCast(spells.Eruption) and game_api.currentPlayerDistanceFromTarget() <= 25.0 and ((game_api.currentPlayerHasAura(auras.EssenceBurst,true)) or (state.currentEssence >= 3) ) then
-        game_api.castSpellOnTarget(spells.Eruption,state.currentTarget)
+    if game_api.canCast(spells.Disintegrate) and not game_api.isOnCooldown(spells.Eruption) and game_api.currentPlayerHasAura(auras.EbonMight,true) and game_api.currentPlayerDistanceFromTarget() <= 25.0 and ((game_api.currentPlayerHasAura(auras.EssenceBurst,true)) or (state.currentEssence >= 2) ) then
+        game_api.castSpellOnTarget(spells.Disintegrate,state.currentTarget)
         return true
     end
+
+    if false and game_api.hasTalent(talents.AncientFlame) and game_api.hasTalent(talents.ScarletAdaptation) and not game_api.currentPlayerHasAura(auras.AncientFlame,true) and not game_api.currentPlayerHasAura(auras.EbonMight,true) then
+
+        if game_api.canCast(spells.VerdantEmbrace) then
+            game_api.castSpellOnTarget(spells.VerdantEmbrace,state.currentPlayer)
+            return true
+        end
+
+        if game_api.canCast(spells.EmeraldBlossom) and state.currentEssence >= 3 then
+            game_api.castSpell(spells.EmeraldBlossom)
+            return true
+        end
+
+    end
+
 
     if game_api.canCast(spells.LivingFlame) and game_api.currentPlayerDistanceFromTarget() <= 25.0 then
         game_api.castSpellOnTarget(spells.LivingFlame,state.currentTarget)
@@ -246,13 +297,13 @@ end
 function Empower()
 
     if game_api.currentPlayerIsChanneling() then
-        if ( game_api.getCurrentPlayerChannelID() == spells.FireBreath ) and utils.EmpowerRank(game_api.getCurrentPlayerChannelPercentage(),state.FirebreathMaxRank) > (state.FireBreathEmpowerLevel - 1) then
-            game_api.castSpell(spells.FireBreath);
+        if ( game_api.getCurrentPlayerChannelID() == spells.FireBreath or game_api.getCurrentPlayerChannelID() == spells.FireBreathFOM ) and utils.EmpowerRank(game_api.getCurrentPlayerChannelPercentage(),state.FirebreathMaxRank) > (state.FireBreathEmpowerLevel - 1) then
+            game_api.castSpell(spells.FireBreathFOM);
             return true
         end
 
-        if ( game_api.getCurrentPlayerChannelID() == spells.Upheaval ) and utils.EmpowerRank(game_api.getCurrentPlayerChannelPercentage(),state.UpheavalMaxRank) > (state.UpheavalEmpowerLevel - 1) then
-            game_api.castSpell(spells.Upheaval);
+        if ( game_api.getCurrentPlayerChannelID() == spells.Upheaval or game_api.getCurrentPlayerChannelID() == spells.UpheavalFOM ) and utils.EmpowerRank(game_api.getCurrentPlayerChannelPercentage(),state.UpheavalMaxRank) > (state.UpheavalEmpowerLevel - 1) then
+            game_api.castSpell(spells.UpheavalFOM);
             return true
         end
 
@@ -263,15 +314,34 @@ end
 
 function Defensive()
 
+    if not game_api.currentPlayerHasAura(auras.BlackAttunement,true) and game_api.canCast(spells.BlackAttunement) and not game_api.isOnCooldown(spells.BronzeAttunement) then
+        game_api.castSpell(spells.BlackAttunement);
+        return true
+    end
+
     if game_api.hasTalent(talents.RenewingBlaze) and game_api.canCast(spells.RenewingBlaze) and state.currentHpPercent < game_api.getSetting(settings.RenewingBlazePercent) then
         game_api.castSpell(spells.RenewingBlaze)
         return true
     end
 
-    if game_api.hasTalent(talents.ObsidianScales) and game_api.canCast(spells.ObsidianScales) and state.currentHpPercent < game_api.getSetting(settings.ObsidianScalePercent) then
-        game_api.castSpell(spells.ObsidianScales)
-        return true
+
+    if game_api.hasTalent(talents.ObsidianScales) then
+        local canCastObsi = false
+        local obsiCharge = game_api.hasTalent(talents.ObsidianBulwark)
+        if obsiCharge then
+            canCastObsi = game_api.canCastCharge(spells.ObsidianScales,2)
+        else
+            canCastObsi = game_api.canCast(spells.ObsidianScales)
+        end
+
+        if canCastObsi and state.currentHpPercent < game_api.getSetting(settings.ObsidianScalePercent) then
+            game_api.castSpell(spells.ObsidianScales)
+            return true
+        end
+
     end
+
+
 
     if game_api.getToggle(settings.Dispel) then
 
@@ -302,6 +372,11 @@ function OnUpdate()
     if not game_api.isSpec(396186) then
         return true
     end
+
+    --print("--------")
+    --print("TRINKET 1 :", game_api.isOnCooldown(193773), game_api.getChargeCountOnCooldown(193773))
+    --print("TRINKET 2 :", game_api.isOnCooldown(193791), game_api.getChargeCountOnCooldown(193791))
+
     if game_api.getToggle(settings.Pause) then
         return true
     end
@@ -309,9 +384,19 @@ function OnUpdate()
 
     StateUpdate()
     
+    if Empower() then
+        return true
+    end
     
     if game_api.currentPlayerIsCasting() or game_api.currentPlayerIsMounted() or game_api.currentPlayerIsChanneling() or game_api.isAOECursor() then
         return
+    end
+
+
+    -- BlessingOfTheBronze auto buff
+    if game_api.canCast(spells.BlessingOfTheBronze) and not game_api.currentPlayerHasAura(auras.BlessingOfTheBronze,false) then
+        game_api.castSpell(spells.BlessingOfTheBronze)
+        return true
     end
 
     --BlessingOfTheBronze auto buff
@@ -320,9 +405,7 @@ function OnUpdate()
        -- return true
    -- end
 
-   if Empower() then
-        return true
-   end
+
 
     if Affix() then
         return true
