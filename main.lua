@@ -243,9 +243,9 @@ function Dps()
 
     if game_api.getToggle(settings.Cooldown) then
 
-        if UseTrinkets() then
-            return true
-        end
+        --if UseTrinkets() then
+            --return true
+        --end
 
         if (game_api.canCast(spells.DeepBreath) and not game_api.isOnCooldown(spells.BreathOfEons)) and game_api.currentPlayerHasAura(auras.EbonMight,true) and game_api.currentPlayerDistanceFromTarget() <= 50.0 then
             game_api.castAOESpellOnTarget(spells.DeepBreath,state.currentTarget)
