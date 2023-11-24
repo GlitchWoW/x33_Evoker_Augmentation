@@ -10,6 +10,7 @@ settings.Pause = "Pause"
 --Settings
 settings.ObsidianScalePercent = "ObsidianScale Life Percent"
 settings.RenewingBlazePercent = "RenewingBlaze Life Percent"
+settings.DispelDelay = "Dispel Delay"
 
 function settings.createSettings()
 
